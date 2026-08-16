@@ -12,8 +12,6 @@ import { isOwner, isPremiumUser } from '../lib/users.js';
 import fs from 'fs/promises';
 import path from 'path';
 
-import { generateWAMessageFromContent, prepareWAMessageMedia, proto } from 'baileys';
-
 /* =========================
    IDENTITAS BOT
 ========================= */
@@ -211,7 +209,7 @@ async function sendMenuAudio(sock, jid, quoted) {
    TOMBOL GRUP: All Menu + Owner
 ========================= */
 
-async function sendGroupButtons(sock, jid, quoted, pushName, imageBuffer) {
+async function sendGroupButtons(sock, jid, quoted, pushName) {
   const text = style(`
 ${sakuraHeader(BOT_NAME)}
 ┃
@@ -222,69 +220,26 @@ ${sakuraHeader(BOT_NAME)}
 ${sakuraFooter()}
 `);
 
-  try {
-    const media = await prepareWAMessageMedia(
-      { image: imageBuffer },
-      { upload: sock.waUploadToServer },
-    );
+  const catButtons = [
+    { text: `${DECO.diamond} All Menu`, id: '.allmenu' },
+    { text: `${DECO.diamond} Owner`, id: '.owner' },
+  ];
 
-    const msg = generateWAMessageFromContent(
+  try {
+    return await sock.sendMessage(
       jid,
       {
-        viewOnceMessage: {
-          message: {
-            interactiveMessage: proto.Message.InteractiveMessage.create({
-              body: proto.Message.InteractiveMessage.Body.create({ text }),
-
-              footer: proto.Message.InteractiveMessage.Footer.create({
-                text: `${BOT_NAME} ${DECO.star} v${global.version}`,
-              }),
-
-              header: proto.Message.InteractiveMessage.Header.create({
-                title: `${DECO.diamond} ${BOT_NAME} ${DECO.diamond}`,
-                hasMediaAttachment: true,
-                imageMessage: media.imageMessage,
-              }),
-
-              nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
-                buttons: [
-                  {
-                    name: 'quick_reply',
-                    buttonParamsJson: JSON.stringify({
-                      display_text: `${DECO.diamond} All Menu`,
-                      id: '.allmenu',
-                    }),
-                  },
-                  {
-                    name: 'quick_reply',
-                    buttonParamsJson: JSON.stringify({
-                      display_text: `${DECO.diamond} Owner`,
-                      id: '.owner',
-                    }),
-                  },
-                  {
-                    name: 'cta_url',
-                    buttonParamsJson: JSON.stringify({
-                      display_text: 'Join Channel',
-                      url: GROUP_LINK,
-                    }),
-                  },
-                ],
-              }),
-            }),
-          },
-        },
+        text,
+        footer: `${BOT_NAME} ${DECO.star} v${global.version}`,
+        title: `${DECO.diamond} ${BOT_NAME} ${DECO.diamond}`,
+        nativeFlow: catButtons,
       },
       { quoted },
     );
-
-    await sock.relayMessage(jid, msg.message, { messageId: msg.key.id });
-
-    return msg;
   } catch (err) {
-    console.error('Group Button Menu Error:', err);
+    console.error('Group Button Menu Error:', err.message);
 
-    return await sock.sendMessage(jid, { image: imageBuffer, caption: text }, { quoted });
+    return await sock.sendMessage(jid, { text }, { quoted });
   }
 }
 
@@ -292,7 +247,7 @@ ${sakuraFooter()}
    TOMBOL PRIVATE: List Pilihan Kategori
 ========================= */
 
-async function sendPrivateMenuList(sock, jid, quoted, pushName, menuData, imageBuffer) {
+async function sendPrivateMenuList(sock, jid, quoted, pushName, menuData) {
   const text = style(`
 ${sakuraHeader(BOT_NAME)}
 ┃
@@ -303,66 +258,38 @@ ${sakuraHeader(BOT_NAME)}
 ${sakuraFooter()}
 `);
 
-  const rows = Object.keys(menuData).map((key) => ({
-    title: `${DECO.diamond} ${key.toUpperCase()}`,
-    description: `Lihat semua perintah di kategori ${key}`,
-    id: `.menu ${key}`,
-  }));
+  const listSections = [
+    {
+      title: `${DECO.diamond} Kategori ${BOT_NAME}`,
+      rows: Object.keys(menuData).map((key) => ({
+        title: `${DECO.diamond} ${key.toUpperCase()}`,
+        description: `Lihat semua perintah di kategori ${key}`,
+        rowId: `.menu ${key}`,
+      })),
+    },
+  ];
 
   try {
-    const media = imageBuffer
-      ? await prepareWAMessageMedia({ image: imageBuffer }, { upload: sock.waUploadToServer })
-      : null;
-
-    const headerContent = media
-      ? { title: `${DECO.diamond} ${BOT_NAME} ${DECO.diamond}`, hasMediaAttachment: true, imageMessage: media.imageMessage }
-      : { title: `${DECO.diamond} ${BOT_NAME} ${DECO.diamond}`, hasMediaAttachment: false };
-
-    const msg = generateWAMessageFromContent(
+    return await sock.sendMessage(
       jid,
       {
-        viewOnceMessage: {
-          message: {
-            interactiveMessage: proto.Message.InteractiveMessage.create({
-              body: proto.Message.InteractiveMessage.Body.create({ text }),
-
-              footer: proto.Message.InteractiveMessage.Footer.create({
-                text: `${BOT_NAME} ${DECO.star} v${global.version}`,
-              }),
-
-              header: proto.Message.InteractiveMessage.Header.create(headerContent),
-
-              nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
-                buttons: [
-                  {
-                    name: 'single_select',
-                    buttonParamsJson: JSON.stringify({
-                      title: `${DECO.diamond} Pilih Menu`,
-                      sections: [
-                        {
-                          title: `Kategori ${BOT_NAME}`,
-                          rows,
-                        },
-                      ],
-                    }),
-                  },
-                ],
-              }),
-            }),
-          },
-        },
+        text,
+        footer: `${BOT_NAME} ${DECO.star} v${global.version}`,
+        title: `${DECO.diamond} ${BOT_NAME} ${DECO.diamond}`,
+        buttonText: `${DECO.diamond} Pilih Menu`,
+        sections: listSections,
       },
       { quoted },
     );
-
-    await sock.relayMessage(jid, msg.message, { messageId: msg.key.id });
-
-    return msg;
   } catch (err) {
-    console.error('Private Menu List Error:', err);
+    console.error('Private Menu List Error:', err.message);
 
     // fallback ke menu teks biasa kalau list button gagal
-    return await sock.sendMessage(jid, { text }, { quoted });
+    try {
+      return await sock.sendMessage(jid, { text }, { quoted });
+    } catch (err2) {
+      console.error('Private Menu fallback teks juga gagal:', err2.message);
+    }
   }
 }
 
@@ -396,31 +323,16 @@ async function handle(sock, messageInfo) {
     /* =========================
        MENU UTAMA
        - Grup    -> tombol All Menu + Owner
-       - Private -> tombol pilihan kategori (single_select)
+       - Private -> tombol pilihan kategori (list)
     ========================= */
 
-    let buffer = null;
-
-    try {
-      buffer = await readFileAsBuffer(MENU_MEDIA_FILE);
-    } catch (e) {
-      buffer = null;
-    }
-
     if (isGroup) {
-      if (buffer) {
-        result = await sendGroupButtons(sock, remoteJid, message, pushName, buffer);
-      } else {
-        const response = buildMainMenu(menuData);
-        result = await reply(m, style(response));
-      }
+      result = await sendGroupButtons(sock, remoteJid, message, pushName);
     } else {
-      result = await sendPrivateMenuList(sock, remoteJid, message, pushName, menuData, buffer);
+      result = await sendPrivateMenuList(sock, remoteJid, message, pushName, menuData);
     }
   } else if (command === 'allmenu') {
     const response = buildAllMenu(pushName, roleUser, date, menuData);
-
-    const buffer = await readFileAsBuffer(MENU_MEDIA_FILE);
 
     const caption = `
 ${style(response)}
@@ -430,24 +342,34 @@ ${DECO.star} SALURAN:
 ${GROUP_LINK}
 `;
 
-    const msg = {
-      caption,
-    };
-
-    const lowerFile = MENU_MEDIA_FILE.toLowerCase();
-
-    if (lowerFile.endsWith('.mp4')) {
-      msg.video = buffer;
-    } else if (lowerFile.endsWith('.gif')) {
-      msg.video = buffer;
-      msg.gifPlayback = true;
-    } else {
-      msg.image = buffer;
+    let buffer = null;
+    try {
+      buffer = await readFileAsBuffer(MENU_MEDIA_FILE);
+    } catch (e) {
+      console.error('[allmenu] Gagal baca gambar menu:', e.message);
     }
 
-    result = await sock.sendMessage(remoteJid, msg, {
-      quoted: message,
-    });
+    if (!buffer) {
+      // Kalau gambar gagal dibaca, tetap kirim teks — jangan diam saja.
+      result = await reply(m, caption);
+    } else {
+      const msg = { caption };
+
+      const lowerFile = MENU_MEDIA_FILE.toLowerCase();
+
+      if (lowerFile.endsWith('.mp4')) {
+        msg.video = buffer;
+      } else if (lowerFile.endsWith('.gif')) {
+        msg.video = buffer;
+        msg.gifPlayback = true;
+      } else {
+        msg.image = buffer;
+      }
+
+      result = await sock.sendMessage(remoteJid, msg, {
+        quoted: message,
+      });
+    }
   }
 
   /* =========================

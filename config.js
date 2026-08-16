@@ -35,7 +35,7 @@ const VERSION = global.version; // don't edit
 const EMAIL = '@gmail.com';
 const REGION = 'Indonesia';
 const WEBSITE = 'autoresbot.com';
-const DATA_OWNER = ['264643620647015@lid']; // cara ambil owner https://youtu.be/qrRXPCSFvRo?si=KOWdFhrScHN7Ugd4 
+const DATA_OWNER = ['108847742120154@lid']; // cara ambil owner https://youtu.be/qrRXPCSFvRo?si=KOWdFhrScHN7Ugd4 
 
 // Konfiqurasi Chat
 const ANTI_CALL = true; // jika true (setiap yang nelpon pribadi akan di block)

@@ -12,7 +12,7 @@
     "@hapi/boom": "^10.0.1",
     "api-autoresbot": "^1.0.6",
     "archiver": "^7.0.1",
-    "baileys": "^7.0.0-rc13",
+    "baileys": "npm:@itsliaaa/baileys@0.3.18-final",
     "better-sqlite3": "^12.8.0",
     "btch-downloader": "^2.8.2",
     "canvas": "^3.1.0",
