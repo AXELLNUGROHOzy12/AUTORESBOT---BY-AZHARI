@@ -25,7 +25,7 @@ const CONNECTION = process.env.CONNECTION_TYPE || 'qr'; // qr atau pairing — p
 const PAIRING_CODE = process.env.PAIRING_CODE || 'RESBOTMD'; // kode pairing max 8 karakter (opsional, hanya dipakai jika CONNECTION = 'pairing')
 const OWNER_NAME = process.env.OWNER_NAME || 'NADYA BOT STORE';
 const NOMOR_BOT = process.env.PHONE_NUMBER_BOT || '6282373436778'; // 628xx nomor wa - 6285124002201
-const DESTINATION = process.env.BOT_DESTINATION || 'group'; // group , private, both
+const DESTINATION = process.env.BOT_DESTINATION || 'both'; // group , private, both
 const APIKEY = process.env.APIKEY || ''; // apikey dari autoresbot.com (paket apikey)
 const RATE_LIMIT = 1000; // 3 detik/chat
 const SIMILARITY = true; // Pencarian kemiripan command (true, false)
