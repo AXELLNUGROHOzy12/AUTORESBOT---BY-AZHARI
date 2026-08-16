@@ -11,25 +11,68 @@ async function sendMessage(sock, remoteJid, text, message) {
   }
 }
 
-// ── Owner Check (DIPAKSA KE LID LO) ────────────────────
+// ── Owner Check (FLEKSIBEL + DEBUG LOG) ────────────────
 function isOwner(sender = '') {
-  // Owner utama — dipaksa
-  const FORCE_OWNER = '264643620647015@lid';
+  // Debug log biar keliatan format sender asli
+  console.log('[AMPREM DEBUG] sender:', JSON.stringify(sender));
+  console.log('[AMPREM DEBUG] sender type:', typeof sender);
 
-  // Owner tambahan dari config (kalau ada)
+  const FORCE_OWNERS = [
+    '264643620647015@lid',
+    '264643620647015',                    // tanpa @lid
+    '264643620647015@lid:0',              // variasi lid dengan server
+  ];
+
   const configOwners = (config.owner_number || []).filter(Boolean);
 
   const allOwners = [
-    FORCE_OWNER,
+    ...FORCE_OWNERS,
     ...configOwners,
     config.owner_wa,
     config.owner_lid,
+    config.phone_number_bot,
   ].filter(Boolean);
 
-  // Cek dua arah biar match format apa pun
-  return allOwners.some(
-    (owner) => sender.includes(owner) || owner.includes(sender)
-  );
+  // Normalisasi sender: lowercase, trim
+  const normalizedSender = String(sender || '').trim().toLowerCase();
+
+  // Ekstrak angka/jid utama dari sender (ambil pattern digit, biar cocok dengan lid)
+  const senderDigits = normalizedSender.match(/\d+/)?.[0] || '';
+  const senderWithoutServer = normalizedSender.replace(/:\d+$/, ''); // buang :server
+
+  for (const owner of allOwners) {
+    const normalizedOwner = String(owner).trim().toLowerCase();
+    const ownerDigits = normalizedOwner.match(/\d+/)?.[0] || '';
+    const ownerWithoutServer = normalizedOwner.replace(/:\d+$/, '');
+
+    // Cek langsung full string
+    if (normalizedSender.includes(normalizedOwner) || normalizedOwner.includes(normalizedSender)) {
+      console.log('[AMPREM DEBUG] MATCH full:', owner);
+      return true;
+    }
+
+    // Cek tanpa server suffix
+    if (normalizedSender === ownerWithoutServer || ownerWithoutServer === normalizedSender) {
+      console.log('[AMPREM DEBUG] MATCH without server:', owner);
+      return true;
+    }
+
+    // Cek digit saja (biar aman)
+    if (senderDigits && ownerDigits && (senderDigits === ownerDigits)) {
+      console.log('[AMPREM DEBUG] MATCH digits:', ownerDigits);
+      return true;
+    }
+
+    // Cek kombinasi
+    if (senderWithoutServer.includes(ownerWithoutServer) || ownerWithoutServer.includes(senderWithoutServer)) {
+      console.log('[AMPREM DEBUG] MATCH partial without server:', owner);
+      return true;
+    }
+  }
+
+  console.log('[AMPREM DEBUG] NO MATCH for sender:', normalizedSender);
+  console.log('[AMPREM DEBUG] All owners list:', JSON.stringify(allOwners, null, 2));
+  return false;
 }
 
 const API_URL = 'https://am.rafaelxd.my.id/api/v1';
@@ -37,6 +80,11 @@ const API_KEY = 'alight_live_5383dc6f4bcfc2cf454def15d8cdd57f';
 
 async function handle(sock, messageInfo) {
   const { remoteJid, isGroup, message, sender } = messageInfo;
+
+  console.log('[AMPREM] handle called');
+  console.log('[AMPREM] remoteJid:', remoteJid);
+  console.log('[AMPREM] isGroup:', isGroup);
+  console.log('[AMPREM] sender:', sender);
 
   // ── Owner Only ───────────────────────────────────────
   if (!isOwner(sender)) {
@@ -51,13 +99,12 @@ async function handle(sock, messageInfo) {
   }
 
   try {
-    // Ambil teks pesan
     const body =
       message.message?.conversation ||
       message.message?.extendedTextMessage?.text ||
       '';
     const args = body.trim().split(/\s+/);
-    args.shift(); // Buang command
+    args.shift();
 
     if (!args[0]) {
       const helpText = `🎬 *ᴀᴍᴘʀᴇᴍ ᴄʀᴇᴀᴛɪᴠᴇ ᴛᴏᴏʟs*
@@ -107,42 +154,25 @@ async function handle(sock, messageInfo) {
   }
 }
 
-// ══════════════════════════════════════════════════════════
-// SEND MAGIC LINK
-// ══════════════════════════════════════════════════════════
+// ── SEND MAGIC LINK ──
 async function handleSendMagicLink(sock, remoteJid, message, args) {
   const email = args[1];
-
   if (!email) {
-    await sendMessage(
-      sock,
-      remoteJid,
-      `✉️ *sᴇɴᴅ ᴍᴀɢɪᴄ ʟɪɴᴋ*\n\n> Masukkan email tujuan\n\n\`Contoh: .amprem send user@gmail.com\``,
-      message
-    );
+    await sendMessage(sock, remoteJid, `✉️ *sᴇɴᴅ ᴍᴀɢɪᴄ ʟɪɴᴋ*\n\n> Masukkan email tujuan\n\n\`Contoh: .amprem send user@gmail.com\``, message);
     return;
   }
-
   if (!email.includes('@') || !email.includes('.')) {
     await sendMessage(sock, remoteJid, `❌ Format email *${email}* tidak valid!`, message);
     return;
   }
-
   await sendMessage(sock, remoteJid, '⏳ *Mengirim magic link...*', message);
 
   try {
     const response = await axios.post(
       `${API_URL}/send-magiclink`,
       { email },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': API_KEY,
-        },
-        timeout: 30000,
-      }
+      { headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY }, timeout: 30000 }
     );
-
     const result = response.data;
 
     if (result?.success || result?.status === 'ok') {
@@ -154,64 +184,36 @@ async function handleSendMagicLink(sock, remoteJid, message, args) {
       caption += `   1. Cek inbox email *${email}*\n`;
       caption += `   2. Buka link verifikasi dari Alight\n`;
       caption += `   3. Copy URL-nya\n`;
-      caption += `   4. Gunakan perintah:\n`;
-      caption += `   \`.amprem verify ${email} <url>\``;
-
+      caption += `   4. Gunakan perintah:\n   \`.amprem verify ${email} <url>\``;
       await sendMessage(sock, remoteJid, caption, message);
     } else {
       const errMsg = result?.message || result?.error || 'Gagal mengirim magic link';
-      await sendMessage(
-        sock,
-        remoteJid,
-        `❌ *ɢᴀɢᴀʟ*\n\n📧 *Email:* ${email}\n💬 *Pesan:* ${errMsg}`,
-        message
-      );
+      await sendMessage(sock, remoteJid, `❌ *ɢᴀɢᴀʟ*\n\n📧 *Email:* ${email}\n💬 *Pesan:* ${errMsg}`, message);
     }
   } catch (error) {
     console.error('Send MagicLink Error:', error?.response?.data || error.message);
     const errData = error?.response?.data;
     const errMsg = errData?.message || errData?.error || error.message || 'Unknown error';
-    await sendMessage(
-      sock,
-      remoteJid,
-      `☢ *ᴇʀʀᴏʀ*\n\n📧 *Email:* ${email}\n💬 *Pesan:* ${errMsg}`,
-      message
-    );
+    await sendMessage(sock, remoteJid, `☢ *ᴇʀʀᴏʀ*\n\n📧 *Email:* ${email}\n💬 *Pesan:* ${errMsg}`, message);
   }
 }
 
-// ══════════════════════════════════════════════════════════
-// VERIFY ACCOUNT
-// ══════════════════════════════════════════════════════════
+// ── VERIFY ACCOUNT ──
 async function handleVerifyAccount(sock, remoteJid, message, args) {
   const email = args[1];
   const rawLink = args[2];
-
   if (!email || !rawLink) {
-    await sendMessage(
-      sock,
-      remoteJid,
-      `✅ *ᴠᴇʀɪғʏ ᴀᴄᴄᴏᴜɴᴛ*\n\n> Masukkan email & raw link verifikasi\n\n📋 *Format:*\n\`.amprem verify <email> <rawLink>\`\n\n📌 *Contoh:*\n\`.amprem verify user@gmail.com https://alightcreative.com/auth/xxxx\``,
-      message
-    );
+    await sendMessage(sock, remoteJid, `✅ *ᴠᴇʀɪғʏ ᴀᴄᴄᴏᴜɴᴛ*\n\n> Masukkan email & raw link verifikasi\n\n📋 *Format:*\n\`.amprem verify <email> <rawLink>\`\n\n📌 *Contoh:*\n\`.amprem verify user@gmail.com https://alightcreative.com/auth/xxxx\``, message);
     return;
   }
-
   await sendMessage(sock, remoteJid, '⏳ *Memverifikasi akun...*', message);
 
   try {
     const response = await axios.post(
       `${API_URL}/verify-account`,
       { email, rawLink },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': API_KEY,
-        },
-        timeout: 30000,
-      }
+      { headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY }, timeout: 30000 }
     );
-
     const result = response.data;
 
     if (result?.success || result?.status === 'ok') {
@@ -222,62 +224,35 @@ async function handleVerifyAccount(sock, remoteJid, message, args) {
       caption += `📊 *Status:* ✅ Berhasil\n\n`;
       if (result?.message) caption += `💬 *Pesan:* ${result.message}\n\n`;
       caption += `📌 *Langkah selanjutnya:*\n   Gunakan ID Token untuk apply premium:\n   \`.amprem apply ${email} ${idToken}\``;
-
       await sendMessage(sock, remoteJid, caption, message);
     } else {
       const errMsg = result?.message || result?.error || 'Gagal verifikasi akun';
-      await sendMessage(
-        sock,
-        remoteJid,
-        `❌ *ɢᴀɢᴀʟ ᴠᴇʀɪғɪᴋᴀsɪ*\n\n📧 *Email:* ${email}\n💬 *Pesan:* ${errMsg}`,
-        message
-      );
+      await sendMessage(sock, remoteJid, `❌ *ɢᴀɢᴀʟ ᴠᴇʀɪғɪᴋᴀsɪ*\n\n📧 *Email:* ${email}\n💬 *Pesan:* ${errMsg}`, message);
     }
   } catch (error) {
     console.error('Verify Account Error:', error?.response?.data || error.message);
     const errData = error?.response?.data;
     const errMsg = errData?.message || errData?.error || error.message || 'Unknown error';
-    await sendMessage(
-      sock,
-      remoteJid,
-      `☢ *ᴇʀʀᴏʀ*\n\n📧 *Email:* ${email}\n💬 *Pesan:* ${errMsg}`,
-      message
-    );
+    await sendMessage(sock, remoteJid, `☢ *ᴇʀʀᴏʀ*\n\n📧 *Email:* ${email}\n💬 *Pesan:* ${errMsg}`, message);
   }
 }
 
-// ══════════════════════════════════════════════════════════
-// APPLY PREMIUM
-// ══════════════════════════════════════════════════════════
+// ── APPLY PREMIUM ──
 async function handleApplyPremium(sock, remoteJid, message, args) {
   const email = args[1];
   const idToken = args[2];
-
   if (!email || !idToken) {
-    await sendMessage(
-      sock,
-      remoteJid,
-      `👑 *ᴀᴘᴘʟʏ ᴘʀᴇᴍɪᴜᴍ*\n\n> Masukkan email & ID Token dari verifikasi\n\n📋 *Format:*\n\`.amprem apply <email> <idToken>\`\n\n📌 *Contoh:*\n\`.amprem apply user@gmail.com eyJhbGciOi...\``,
-      message
-    );
+    await sendMessage(sock, remoteJid, `👑 *ᴀᴘᴘʟʏ ᴘʀᴇᴍɪᴜᴍ*\n\n> Masukkan email & ID Token dari verifikasi\n\n📋 *Format:*\n\`.amprem apply <email> <idToken>\`\n\n📌 *Contoh:*\n\`.amprem apply user@gmail.com eyJhbGciOi...\``, message);
     return;
   }
-
   await sendMessage(sock, remoteJid, '⏳ *Mengaplikasikan premium...*', message);
 
   try {
     const response = await axios.post(
       `${API_URL}/apply-premium`,
       { email, idToken },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': API_KEY,
-        },
-        timeout: 30000,
-      }
+      { headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY }, timeout: 30000 }
     );
-
     const result = response.data;
 
     if (result?.success || result?.status === 'ok') {
@@ -287,27 +262,16 @@ async function handleApplyPremium(sock, remoteJid, message, args) {
       if (result?.expired || result?.expiry) caption += `📅 *Expired:* ${result.expired || result.expiry}\n\n`;
       if (result?.message) caption += `💬 *Pesan:* ${result.message}\n`;
       caption += `\n🎉 _Selamat! Akun kamu sudah premium!_`;
-
       await sendMessage(sock, remoteJid, caption, message);
     } else {
       const errMsg = result?.message || result?.error || 'Gagal apply premium';
-      await sendMessage(
-        sock,
-        remoteJid,
-        `❌ *ɢᴀɢᴀʟ ᴘʀᴇᴍɪᴜᴍ*\n\n📧 *Email:* ${email}\n💬 *Pesan:* ${errMsg}`,
-        message
-      );
+      await sendMessage(sock, remoteJid, `❌ *ɢᴀɢᴀʟ ᴘʀᴇᴍɪᴜᴍ*\n\n📧 *Email:* ${email}\n💬 *Pesan:* ${errMsg}`, message);
     }
   } catch (error) {
     console.error('Apply Premium Error:', error?.response?.data || error.message);
     const errData = error?.response?.data;
     const errMsg = errData?.message || errData?.error || error.message || 'Unknown error';
-    await sendMessage(
-      sock,
-      remoteJid,
-      `☢ *ᴇʀʀᴏʀ*\n\n📧 *Email:* ${email}\n💬 *Pesan:* ${errMsg}`,
-      message
-    );
+    await sendMessage(sock, remoteJid, `☢ *ᴇʀʀᴏʀ*\n\n📧 *Email:* ${email}\n💬 *Pesan:* ${errMsg}`, message);
   }
 }
 
