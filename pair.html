@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pairing WhatsApp Bot</title>
+<style>
+  :root {
+    --bg: #0e1117;
+    --card: #161b22;
+    --accent: #25d366;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --border: #30363d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px 24px;
+    max-width: 380px;
+    width: 100%;
+    text-align: center;
+  }
+  h1 {
+    font-size: 20px;
+    margin: 0 0 4px;
+  }
+  p.sub {
+    color: var(--muted);
+    font-size: 13px;
+    margin: 0 0 20px;
+  }
+  #qrBox {
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px;
+    display: inline-block;
+    min-height: 220px;
+    min-width: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #qrBox img {
+    width: 220px;
+    height: 220px;
+    display: block;
+  }
+  .loading {
+    color: #666;
+    font-size: 13px;
+  }
+  #codeBox {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--accent);
+    background: #0d1a12;
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    padding: 16px;
+    margin-top: 8px;
+  }
+  .status {
+    margin-top: 18px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .status.connected {
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    margin-right: 6px;
+  }
+  .dot.live {
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+  }
+  .steps {
+    text-align: left;
+    font-size: 12.5px;
+    color: var(--muted);
+    margin-top: 20px;
+    line-height: 1.6;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+  }
+  .steps b { color: var(--text); }
+  .success-icon {
+    font-size: 48px;
+    margin-bottom: 8px;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>🔗 Pairing Bot WhatsApp</h1>
+    <p class="sub">Halaman ini akan otomatis update setiap beberapa detik</p>
+
+    <div id="content">
+      <div id="qrBox"><span class="loading">Memuat...</span></div>
+    </div>
+
+    <div class="status" id="statusText">
+      <span class="dot" id="statusDot"></span><span id="statusLabel">Menghubungkan...</span>
+    </div>
+
+    <div class="steps" id="stepsBox">
+      <b>Cara pairing (QR):</b><br />
+      1. Buka WhatsApp di HP kamu<br />
+      2. Menu &gt; Perangkat Tertaut &gt; Tautkan Perangkat<br />
+      3. Arahkan kamera ke QR di atas
+    </div>
+  </div>
+
+<script>
+  const qrBox = document.getElementById('qrBox');
+  const statusLabel = document.getElementById('statusLabel');
+  const statusDot = document.getElementById('statusDot');
+  const stepsBox = document.getElementById('stepsBox');
+
+  let lastRenderKey = null;
+
+  async function poll() {
+    try {
+      const res = await fetch('/api/status', { cache: 'no-store' });
+      const data = await res.json();
+
+      if (data.connected) {
+        statusLabel.textContent = 'Terhubung ke WhatsApp';
+        statusDot.classList.add('live');
+        document.getElementById('statusText').classList.add('connected');
+        if (lastRenderKey !== 'connected') {
+          qrBox.innerHTML = '<div><div class="success-icon">✅</div><div style="color:#111">Bot berhasil terhubung!</div></div>';
+          stepsBox.innerHTML = '<b>Selesai!</b><br>Bot sudah aktif dan siap dipakai di WhatsApp kamu.';
+          lastRenderKey = 'connected';
+        }
+        return;
+      }
+
+      statusDot.classList.remove('live');
+
+      if (data.qrDataUrl) {
+        statusLabel.textContent = 'Menunggu scan QR...';
+        if (lastRenderKey !== data.qrDataUrl) {
+          qrBox.innerHTML = '<img src="' + data.qrDataUrl + '" alt="QR Pairing" />';
+          stepsBox.innerHTML = '<b>Cara pairing (QR):</b><br>1. Buka WhatsApp di HP kamu<br>2. Menu &gt; Perangkat Tertaut &gt; Tautkan Perangkat<br>3. Arahkan kamera ke QR di atas';
+          lastRenderKey = data.qrDataUrl;
+        }
+      } else if (data.pairingCode) {
+        statusLabel.textContent = 'Masukkan kode ini di WhatsApp';
+        if (lastRenderKey !== data.pairingCode) {
+          qrBox.innerHTML = '<div id="codeBox">' + data.pairingCode + '</div>';
+          stepsBox.innerHTML = '<b>Cara pairing (Kode):</b><br>1. Buka WhatsApp di HP kamu<br>2. Menu &gt; Perangkat Tertaut &gt; Tautkan dengan nomor telepon<br>3. Masukkan kode di atas';
+          lastRenderKey = data.pairingCode;
+        }
+      } else {
+        statusLabel.textContent = 'Menyiapkan sesi...';
+        qrBox.innerHTML = '<span class="loading">Menunggu QR / kode dari server...</span>';
+      }
+    } catch (err) {
+      statusLabel.textContent = 'Gagal memuat status (cek koneksi)';
+    }
+  }
+
+  poll();
+  setInterval(poll, 3000);
+</script>
+</body>
+</html>

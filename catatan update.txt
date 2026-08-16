@@ -1,0 +1,22 @@
+🚀 **Update Resbot MD v5.3.0**
+
+Versi terbaru Resbot MD telah hadir! Update ini membawa berbagai perbaikan bug, penyempurnaan fitur, serta fitur baru.
+
+🔧 **Perbaikan Bug**
+• `sendmoney` / `sendlimit`
+• `addmoney` / `addlimit` — kini owner dapat menambahkan saldo atau limit ke akun sendiri
+• `swhd`
+• `top` / `topgrub`
+• `emojimix`
+• `jadibot` / `stopjadibot`
+• `ytmp3` / `ytmp4`
+• `destination` — aturan tujuan kini lebih konsisten untuk mode `group`, `private`, dan `both`
+
+✨ **Fitur Baru**
+• `playvid` — putar dan unduh video dengan lebih mudah
+
+📥 **Download Resbot MD v5.3.0**
+https://autoresbot.com/download
+
+Cara Update:
+Cukup ketik .update di bot
