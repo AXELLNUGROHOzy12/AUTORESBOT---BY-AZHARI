@@ -11,16 +11,26 @@ async function sendMessage(sock, remoteJid, text, message) {
   }
 }
 
-// ── Owner Check (FLEKSIBEL + DEBUG LOG) ────────────────
+// ── Owner Check (STRIP QUOTE + FLEXIBLE) ───────────────
 function isOwner(sender = '') {
-  // Debug log biar keliatan format sender asli
-  console.log('[AMPREM DEBUG] sender:', JSON.stringify(sender));
-  console.log('[AMPREM DEBUG] sender type:', typeof sender);
+  // Debug log
+  console.log('[AMPREM DEBUG] Raw sender:', JSON.stringify(sender));
+
+  // Bersihin sender dari quote/apapun
+  let cleanSender = String(sender || '')
+    .trim()
+    .replace(/^["']+|["']+$/g, '') // buang quote di awal & akhir
+    .toLowerCase();
+
+  console.log('[AMPREM DEBUG] Clean sender:', cleanSender);
 
   const FORCE_OWNERS = [
     '264643620647015@lid',
-    '264643620647015',                    // tanpa @lid
-    '264643620647015@lid:0',              // variasi lid dengan server
+    '264643620647015',
+    '264643620647015@lid:0',
+    '6287727703519',
+    '6287727703519@s.whatsapp.net',
+    '6287727703519:0',
   ];
 
   const configOwners = (config.owner_number || []).filter(Boolean);
@@ -33,45 +43,43 @@ function isOwner(sender = '') {
     config.phone_number_bot,
   ].filter(Boolean);
 
-  // Normalisasi sender: lowercase, trim
-  const normalizedSender = String(sender || '').trim().toLowerCase();
-
-  // Ekstrak angka/jid utama dari sender (ambil pattern digit, biar cocok dengan lid)
-  const senderDigits = normalizedSender.match(/\d+/)?.[0] || '';
-  const senderWithoutServer = normalizedSender.replace(/:\d+$/, ''); // buang :server
+  // Ekstrak digit dari sender
+  const senderDigits = cleanSender.match(/\d+/)?.[0] || '';
 
   for (const owner of allOwners) {
-    const normalizedOwner = String(owner).trim().toLowerCase();
-    const ownerDigits = normalizedOwner.match(/\d+/)?.[0] || '';
-    const ownerWithoutServer = normalizedOwner.replace(/:\d+$/, '');
+    const cleanOwner = String(owner)
+      .trim()
+      .replace(/^["']+|["']+$/g, '')
+      .toLowerCase();
 
-    // Cek langsung full string
-    if (normalizedSender.includes(normalizedOwner) || normalizedOwner.includes(normalizedSender)) {
-      console.log('[AMPREM DEBUG] MATCH full:', owner);
+    // Skip kalau kosong
+    if (!cleanOwner) continue;
+
+    const ownerDigits = cleanOwner.match(/\d+/)?.[0] || '';
+
+    // Cek full
+    if (cleanSender.includes(cleanOwner) || cleanOwner.includes(cleanSender)) {
+      console.log('[AMPREM DEBUG] MATCH full:', cleanOwner);
       return true;
     }
 
-    // Cek tanpa server suffix
-    if (normalizedSender === ownerWithoutServer || ownerWithoutServer === normalizedSender) {
-      console.log('[AMPREM DEBUG] MATCH without server:', owner);
-      return true;
-    }
-
-    // Cek digit saja (biar aman)
-    if (senderDigits && ownerDigits && (senderDigits === ownerDigits)) {
+    // Cek digit doang (cara paling anti gagal)
+    if (senderDigits && ownerDigits && senderDigits === ownerDigits) {
       console.log('[AMPREM DEBUG] MATCH digits:', ownerDigits);
       return true;
     }
 
-    // Cek kombinasi
-    if (senderWithoutServer.includes(ownerWithoutServer) || ownerWithoutServer.includes(senderWithoutServer)) {
-      console.log('[AMPREM DEBUG] MATCH partial without server:', owner);
+    // Cek sender tanpa @lid / @s.whatsapp.net
+    const senderBare = cleanSender.replace(/@.*$/, '');
+    const ownerBare = cleanOwner.replace(/@.*$/, '');
+    if (senderBare && ownerBare && (senderBare === ownerBare || senderBare.includes(ownerBare) || ownerBare.includes(senderBare))) {
+      console.log('[AMPREM DEBUG] MATCH bare:', ownerBare);
       return true;
     }
   }
 
-  console.log('[AMPREM DEBUG] NO MATCH for sender:', normalizedSender);
-  console.log('[AMPREM DEBUG] All owners list:', JSON.stringify(allOwners, null, 2));
+  console.log('[AMPREM DEBUG] NO MATCH. Sender digits:', senderDigits);
+  console.log('[AMPREM DEBUG] Owner digits:', allOwners.map(o => String(o).match(/\d+/)?.[0]).filter(Boolean));
   return false;
 }
 
@@ -81,18 +89,13 @@ const API_KEY = 'alight_live_5383dc6f4bcfc2cf454def15d8cdd57f';
 async function handle(sock, messageInfo) {
   const { remoteJid, isGroup, message, sender } = messageInfo;
 
-  console.log('[AMPREM] handle called');
-  console.log('[AMPREM] remoteJid:', remoteJid);
-  console.log('[AMPREM] isGroup:', isGroup);
-  console.log('[AMPREM] sender:', sender);
+  console.log('[AMPREM] handle called | sender:', sender);
 
-  // ── Owner Only ───────────────────────────────────────
   if (!isOwner(sender)) {
     await sendMessage(sock, remoteJid, '❌ *Khusus owner.* Lu bukan owner, bro.', message);
     return;
   }
 
-  // ── Private Only ─────────────────────────────────────
   if (isGroup) {
     await sendMessage(sock, remoteJid, '❌ *Khusus private chat.* Gunakan di DM bot.', message);
     return;
@@ -141,12 +144,7 @@ async function handle(sock, messageInfo) {
         await handleApplyPremium(sock, remoteJid, message, args);
         break;
       default:
-        await sendMessage(
-          sock,
-          remoteJid,
-          `❌ Sub-perintah *${subCommand}* tidak dikenal.\n\nGunakan: \`send\`, \`verify\`, atau \`apply\``,
-          message
-        );
+        await sendMessage(sock, remoteJid, `❌ Sub-perintah *${subCommand}* tidak dikenal.\n\nGunakan: \`send\`, \`verify\`, atau \`apply\``, message);
     }
   } catch (error) {
     console.error(`Error in amprem handle: ${error.message}`);
