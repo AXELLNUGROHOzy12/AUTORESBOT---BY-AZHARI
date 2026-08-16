@@ -1,5 +1,3 @@
-// -- DECOMPRESS AND CREATED BY NOVA #85510
-
 import mess from '../../strings.js';
 import { getGroupMetadata } from '../../lib/cache.js';
 import axios from 'axios';
@@ -13,23 +11,24 @@ async function sendMessage(sock, remoteJid, text, message) {
   }
 }
 
-// ── Owner Check (adapt config lo) ─────────────────────
+// ── Owner Check (DIPAKSA KE LID LO) ────────────────────
 function isOwner(sender = '') {
-  // config.owner_number = ['264643620647015@lid']
-  const owners = (config.owner_number || []).filter(Boolean);
-  
-  // Juga support kalau ada fallback di config lain
-  const extraOwners = [
+  // Owner utama — dipaksa
+  const FORCE_OWNER = '264643620647015@lid';
+
+  // Owner tambahan dari config (kalau ada)
+  const configOwners = (config.owner_number || []).filter(Boolean);
+
+  const allOwners = [
+    FORCE_OWNER,
+    ...configOwners,
     config.owner_wa,
     config.owner_lid,
-    config.phone_number_bot,
   ].filter(Boolean);
-  
-  const allOwners = [...owners, ...extraOwners];
-  
-  // Cek dua arah: sender includes owner ATAU owner includes sender
-  return allOwners.some(owner => 
-    sender.includes(owner) || owner.includes(sender)
+
+  // Cek dua arah biar match format apa pun
+  return allOwners.some(
+    (owner) => sender.includes(owner) || owner.includes(sender)
   );
 }
 
@@ -39,43 +38,45 @@ const API_KEY = 'alight_live_5383dc6f4bcfc2cf454def15d8cdd57f';
 async function handle(sock, messageInfo) {
   const { remoteJid, isGroup, message, sender } = messageInfo;
 
-  // ── Owner Only ──────────────────────────────────────
+  // ── Owner Only ───────────────────────────────────────
   if (!isOwner(sender)) {
     await sendMessage(sock, remoteJid, '❌ *Khusus owner.* Lu bukan owner, bro.', message);
     return;
   }
 
-  // ── Private Only ────────────────────────────────────
+  // ── Private Only ─────────────────────────────────────
   if (isGroup) {
     await sendMessage(sock, remoteJid, '❌ *Khusus private chat.* Gunakan di DM bot.', message);
     return;
   }
 
   try {
-    // ── Parse args ────────────────────────────────────
-    const body = message.message?.conversation ||
-                 message.message?.extendedTextMessage?.text || '';
+    // Ambil teks pesan
+    const body =
+      message.message?.conversation ||
+      message.message?.extendedTextMessage?.text ||
+      '';
     const args = body.trim().split(/\s+/);
     args.shift(); // Buang command
 
     if (!args[0]) {
-      const helpText = `🎬 *ᴀʟɪɢʜᴛ ᴄʀᴇᴀᴛɪᴠᴇ ᴛᴏᴏʟs*
+      const helpText = `🎬 *ᴀᴍᴘʀᴇᴍ ᴄʀᴇᴀᴛɪᴠᴇ ᴛᴏᴏʟs*
 
 📋 *Perintah:*
 
-✉️  *.alight send <email>*
+✉️  *.amprem send <email>*
    Kirim magic link ke email
 
-✅ *.alight verify <email> <rawLink>*
+✅ *.amprem verify <email> <rawLink>*
    Verifikasi akun dengan magic link
 
-👑 *.alight apply <email> <idToken>*
+👑 *.amprem apply <email> <idToken>*
    Apply premium ke akun
 
 📌 *Contoh:*
-   .alight send user@gmail.com
-   .alight verify user@gmail.com https://alightcreative.com/auth/xxx
-   .alight apply user@gmail.com eyJhbGciOi...`;
+   .amprem send user@gmail.com
+   .amprem verify user@gmail.com https://alightcreative.com/auth/xxx
+   .amprem apply user@gmail.com eyJhbGciOi...`;
       await sendMessage(sock, remoteJid, helpText, message);
       return;
     }
@@ -100,9 +101,8 @@ async function handle(sock, messageInfo) {
           message
         );
     }
-
   } catch (error) {
-    console.error(`Error in alight handle: ${error.message}`);
+    console.error(`Error in amprem handle: ${error.message}`);
     await sendMessage(sock, remoteJid, `❌ *Error:* ${error.message}`, message);
   }
 }
@@ -117,7 +117,7 @@ async function handleSendMagicLink(sock, remoteJid, message, args) {
     await sendMessage(
       sock,
       remoteJid,
-      `✉️ *sᴇɴᴅ ᴍᴀɢɪᴄ ʟɪɴᴋ*\n\n> Masukkan email tujuan\n\n\`Contoh: .alight send user@gmail.com\``,
+      `✉️ *sᴇɴᴅ ᴍᴀɢɪᴄ ʟɪɴᴋ*\n\n> Masukkan email tujuan\n\n\`Contoh: .amprem send user@gmail.com\``,
       message
     );
     return;
@@ -137,9 +137,9 @@ async function handleSendMagicLink(sock, remoteJid, message, args) {
       {
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': API_KEY
+          'x-api-key': API_KEY,
         },
-        timeout: 30000
+        timeout: 30000,
       }
     );
 
@@ -155,7 +155,7 @@ async function handleSendMagicLink(sock, remoteJid, message, args) {
       caption += `   2. Buka link verifikasi dari Alight\n`;
       caption += `   3. Copy URL-nya\n`;
       caption += `   4. Gunakan perintah:\n`;
-      caption += `   \`.alight verify ${email} <url>\``;
+      caption += `   \`.amprem verify ${email} <url>\``;
 
       await sendMessage(sock, remoteJid, caption, message);
     } else {
@@ -167,7 +167,6 @@ async function handleSendMagicLink(sock, remoteJid, message, args) {
         message
       );
     }
-
   } catch (error) {
     console.error('Send MagicLink Error:', error?.response?.data || error.message);
     const errData = error?.response?.data;
@@ -192,7 +191,7 @@ async function handleVerifyAccount(sock, remoteJid, message, args) {
     await sendMessage(
       sock,
       remoteJid,
-      `✅ *ᴠᴇʀɪғʏ ᴀᴄᴄᴏᴜɴᴛ*\n\n> Masukkan email & raw link verifikasi\n\n📋 *Format:*\n\`.alight verify <email> <rawLink>\`\n\n📌 *Contoh:*\n\`.alight verify user@gmail.com https://alightcreative.com/auth/xxxx\``,
+      `✅ *ᴠᴇʀɪғʏ ᴀᴄᴄᴏᴜɴᴛ*\n\n> Masukkan email & raw link verifikasi\n\n📋 *Format:*\n\`.amprem verify <email> <rawLink>\`\n\n📌 *Contoh:*\n\`.amprem verify user@gmail.com https://alightcreative.com/auth/xxxx\``,
       message
     );
     return;
@@ -207,9 +206,9 @@ async function handleVerifyAccount(sock, remoteJid, message, args) {
       {
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': API_KEY
+          'x-api-key': API_KEY,
         },
-        timeout: 30000
+        timeout: 30000,
       }
     );
 
@@ -222,7 +221,7 @@ async function handleVerifyAccount(sock, remoteJid, message, args) {
       caption += `🔑 *ID Token:* \`\`\`${idToken}\`\`\`\n`;
       caption += `📊 *Status:* ✅ Berhasil\n\n`;
       if (result?.message) caption += `💬 *Pesan:* ${result.message}\n\n`;
-      caption += `📌 *Langkah selanjutnya:*\n   Gunakan ID Token untuk apply premium:\n   \`.alight apply ${email} ${idToken}\``;
+      caption += `📌 *Langkah selanjutnya:*\n   Gunakan ID Token untuk apply premium:\n   \`.amprem apply ${email} ${idToken}\``;
 
       await sendMessage(sock, remoteJid, caption, message);
     } else {
@@ -234,7 +233,6 @@ async function handleVerifyAccount(sock, remoteJid, message, args) {
         message
       );
     }
-
   } catch (error) {
     console.error('Verify Account Error:', error?.response?.data || error.message);
     const errData = error?.response?.data;
@@ -259,7 +257,7 @@ async function handleApplyPremium(sock, remoteJid, message, args) {
     await sendMessage(
       sock,
       remoteJid,
-      `👑 *ᴀᴘᴘʟʏ ᴘʀᴇᴍɪᴜᴍ*\n\n> Masukkan email & ID Token dari verifikasi\n\n📋 *Format:*\n\`.alight apply <email> <idToken>\`\n\n📌 *Contoh:*\n\`.alight apply user@gmail.com eyJhbGciOi...\``,
+      `👑 *ᴀᴘᴘʟʏ ᴘʀᴇᴍɪᴜᴍ*\n\n> Masukkan email & ID Token dari verifikasi\n\n📋 *Format:*\n\`.amprem apply <email> <idToken>\`\n\n📌 *Contoh:*\n\`.amprem apply user@gmail.com eyJhbGciOi...\``,
       message
     );
     return;
@@ -274,9 +272,9 @@ async function handleApplyPremium(sock, remoteJid, message, args) {
       {
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': API_KEY
+          'x-api-key': API_KEY,
         },
-        timeout: 30000
+        timeout: 30000,
       }
     );
 
@@ -300,7 +298,6 @@ async function handleApplyPremium(sock, remoteJid, message, args) {
         message
       );
     }
-
   } catch (error) {
     console.error('Apply Premium Error:', error?.response?.data || error.message);
     const errData = error?.response?.data;
@@ -316,7 +313,7 @@ async function handleApplyPremium(sock, remoteJid, message, args) {
 
 export default {
   handle,
-  Commands: ['alight', 'al', 'premium'],
+  Commands: ['amprem', 'am', 'premium'],
   OnlyPremium: false,
   OnlyOwner: true,
 };
