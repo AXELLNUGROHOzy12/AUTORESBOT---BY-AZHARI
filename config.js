@@ -22,9 +22,9 @@ import moment from 'moment-timezone';
 // (Settings > Variables), supaya tidak perlu edit & push ulang kode untuk ganti
 // nomor/apikey. Kalau env var tidak diset, dipakai nilai default di sini.
 const CONNECTION = process.env.CONNECTION_TYPE || 'qr'; // qr atau pairing — pakai "qr" agar bisa scan lewat pair.html
-const PAIRING_CODE = process.env.PAIRING_CODE || 'RESBOTMD'; // kode pairing max 8 karakter (opsional, hanya dipakai jika CONNECTION = 'pairing')
-const OWNER_NAME = process.env.OWNER_NAME || 'NADYA BOT STORE';
-const NOMOR_BOT = process.env.PHONE_NUMBER_BOT || '6282373436778'; // 628xx nomor wa - 6285124002201
+const PAIRING_CODE = process.env.PAIRING_CODE || 'NOVACARE'; // kode pairing max 8 karakter (opsional, hanya dipakai jika CONNECTION = 'pairing')
+const OWNER_NAME = process.env.OWNER_NAME || 'NOVA';
+const NOMOR_BOT = process.env.PHONE_NUMBER_BOT || '628179249543'; // 628xx nomor wa - 6285124002201
 const DESTINATION = process.env.BOT_DESTINATION || 'both'; // group , private, both
 const APIKEY = process.env.APIKEY || ''; // apikey dari autoresbot.com (paket apikey)
 const RATE_LIMIT = 1000; // 3 detik/chat
@@ -35,7 +35,7 @@ const VERSION = global.version; // don't edit
 const EMAIL = '@gmail.com';
 const REGION = 'Indonesia';
 const WEBSITE = 'autoresbot.com';
-const DATA_OWNER = ['264643620647015@lid']; // cara ambil owner https://youtu.be/qrRXPCSFvRo?si=KOWdFhrScHN7Ugd4 
+const DATA_OWNER = ['264643620647015@lid:0']; // cara ambil owner https://youtu.be/qrRXPCSFvRo?si=KOWdFhrScHN7Ugd4 
 
 // Konfiqurasi Chat
 const ANTI_CALL = true; // jika true (setiap yang nelpon pribadi akan di block)
